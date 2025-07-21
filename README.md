@@ -4,7 +4,7 @@ Work in progress. AI gen code, use at own risk.
 
 A sophisticated multi-agent cognitive system implementing asynchronous event-driven architecture for advanced AI coordination and decision-making.
 
-![alt text](image.png)
+![alt text](image-1.png)
 
 ## 🎯 Overview
 
