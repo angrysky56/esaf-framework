@@ -1,0 +1,24 @@
+[package]
+name = "esaf-framework"
+version = "0.1.0"
+description = "Evolved Synergistic Agentic Framework - Desktop Application"
+authors = ["Ty <angrysky56@github.com>"]
+license = "MIT"
+repository = "https://github.com/angrysky56/esaf-framework"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+tauri = { version = "1.6", features = [ "window-hide", "window-minimize", "window-start-dragging", "window-maximize", "window-close", "fs-all", "dialog-all", "shell-open", "path-all", "window-unminimize", "window-unmaximize", "window-show"] }
+
+[features]
+# by default Tauri runs in production mode
+# when `tauri dev` runs it is executed with `cargo run --no-default-features` if `devPath` is a URL
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
