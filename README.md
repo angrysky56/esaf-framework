@@ -4,7 +4,7 @@ Work in progress. AI gen code, use at own risk.
 
 A sophisticated multi-agent cognitive system implementing asynchronous event-driven architecture for advanced AI coordination and decision-making.
 
-![alt text](image.png)
+![alt text](image-1.png)
 
 ## 🎯 Overview
 
@@ -150,7 +150,33 @@ pkill -f "npm run tauri:dev" && pkill -f "vite" && sleep 2
    npm run tauri:build
    ```
 
-### Quick Start Example
+## 📋 Features That Are Already Implemented- a bit wrong still, scroll all the way up in chat to reveal download and history buttons- AI being absurd.
+You can find pre-built packages here, they may work even.
+
+esaf-framework/src-tauri/target/release/bundle/deb/ESAF Framework_0.1.0_amd64.deb
+
+
+### Chat Continuity ✅
+- Every conversation is automatically saved
+- Switch between sessions in the History tab
+- Previous context is included in new messages
+- Sessions persist across app restarts
+
+### Document Library ✅
+- Upload files (drag & drop or browse)
+- Add URLs for web content
+- Select documents to include as AI context
+- Manage with tags and descriptions
+
+### Agent System ✅
+- All agents use REAL mathematical algorithms
+- Data Analysis Agent: Bayesian inference, statistical analysis
+- Optimization Agent: Linear programming, genetic algorithms
+- Game Theory Agent: Nash equilibrium calculations
+- All coordinated by the Orchestrator
+
+
+### Example
 
 ```typescript
 import { frameworkInstance } from '@/core/orchestrator.js';

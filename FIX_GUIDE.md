@@ -30,8 +30,8 @@ npm run tauri:dev
    - ✅ Dark/Light theme toggle
    - ✅ Settings panel with LLM configuration
 
-## 📋 Features That Are Already Implemented- actually not true yet lol sorry, AI.
-You can find pre-built packages here though, they may work even.
+## 📋 Features That Are Already Implemented- a bit wrong still, scroll all the way up in chat to reveal download and history buttons- AI being absurd.
+You can find pre-built packages here, they may work even.
 
 esaf-framework/src-tauri/target/release/bundle/deb/ESAF Framework_0.1.0_amd64.deb
 
@@ -55,11 +55,9 @@ esaf-framework/src-tauri/target/release/bundle/deb/ESAF Framework_0.1.0_amd64.de
 - Game Theory Agent: Nash equilibrium calculations
 - All coordinated by the Orchestrator
 
-## 🚨 Common Mistakes to Avoid
 
-1. **DON'T use `npm run dev`** - This only starts the web server
-2. **USE `npm run tauri:dev`** - This starts the full desktop app
-3. **DON'T look in the browser** - Look for the desktop window
+1. **Use `npm run dev`** - This only starts the web server
+2. **USE `npm run tauri:dev`** - This  only starts the desktop app
 
 ## 🔧 If You Still Have Issues
 
