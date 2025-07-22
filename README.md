@@ -4,7 +4,7 @@ Work in progress. AI gen code, use at own risk.
 
 A sophisticated multi-agent cognitive system implementing asynchronous event-driven architecture for advanced AI coordination and decision-making.
 
-![alt text](image-1.png)
+![alt text](image.png)
 
 ## 🎯 Overview
 
@@ -120,7 +120,7 @@ See [DYNAMIC_MODEL_FETCHING.md](./DYNAMIC_MODEL_FETCHING.md) for comprehensive d
    cd ..
    ```
 
-on Ubuntu systems you may need to install the following packages:
+on Ubuntu systems you may need to install the following packages to run the Tauri version:
 
 ```bash
 sudo apt install -y libwebkit2gtk-4.0-dev libgtk-3-dev librsvg2-dev patchelf libsoup2.4-dev
