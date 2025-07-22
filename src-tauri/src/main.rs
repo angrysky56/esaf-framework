@@ -3,8 +3,8 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use tauri::State;
 use std::sync::Mutex;
+use tauri::State;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct AppState {
@@ -19,7 +19,10 @@ fn get_app_info() -> Result<HashMap<String, String>, String> {
     let mut info = HashMap::new();
     info.insert("name".to_string(), "ESAF Framework".to_string());
     info.insert("version".to_string(), "0.1.0".to_string());
-    info.insert("description".to_string(), "Evolved Synergistic Agentic Framework".to_string());
+    info.insert(
+        "description".to_string(),
+        "Evolved Synergistic Agentic Framework".to_string(),
+    );
     Ok(info)
 }
 
@@ -47,11 +50,7 @@ fn get_task_list(state: State<AppStateType>) -> Result<HashMap<String, String>, 
 }
 
 #[tauri::command]
-fn add_task(
-    task_id: String,
-    task_data: String,
-    state: State<AppStateType>,
-) -> Result<(), String> {
+fn add_task(task_id: String, task_data: String, state: State<AppStateType>) -> Result<(), String> {
     let mut app_state = state.lock().map_err(|e| e.to_string())?;
     app_state.tasks.insert(task_id, task_data);
     Ok(())
@@ -71,6 +70,9 @@ fn main() {
     };
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .manage(AppStateType::new(initial_state))
         .invoke_handler(tauri::generate_handler![
             get_app_info,

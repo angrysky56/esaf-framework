@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { MainInterface } from '@/components/MainInterface.js';
+import { MainInterface } from '@/components/MainInterface';
 import './App.css';
 
 /**

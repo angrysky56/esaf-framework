@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { AgentInfo } from '@/core/types.js';
+import { AgentInfo } from '@/core/types';
 
 interface AgentPanelProps {
   agents: AgentInfo[];
@@ -71,7 +71,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   /**
    * Filter agents based on status
    */
-  const filteredAgents = agents.filter(agent => 
+  const filteredAgents = agents.filter(agent =>
     filter === 'all' || agent.status === filter
   );
 
@@ -91,7 +91,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   /**
    * Get selected agent details
    */
-  const selectedAgentData = selectedAgent 
+  const selectedAgentData = selectedAgent
     ? agents.find(agent => agent.id === selectedAgent)
     : null;  if (!isInitialized) {
     return (
@@ -120,6 +120,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
           <div className="flex items-center space-x-4">
             {/* Filter */}
             <select
+              aria-label="Filter agents by status"
               value={filter}
               onChange={(e) => setFilter(e.target.value as any)}
               className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -194,7 +195,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="text-right">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getAgentStatusColor(agent.status)}`}>
                         {getAgentStatusIcon(agent.status)} {agent.status}
@@ -217,7 +218,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
                     No agents found
                   </p>
                   <p className="text-gray-500 dark:text-gray-400">
-                    {filter !== 'all' 
+                    {filter !== 'all'
                       ? `No agents with status "${filter}"`
                       : 'The system is initializing agents'
                     }

@@ -4,16 +4,17 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { frameworkInstance } from '@/core/orchestrator.js';
-import { FrameworkStatus, AgentInfo, Task } from '@/core/types.js';
-import { Header } from './Header.js';
-import { Sidebar } from './Sidebar.js';
-import { ChatInterface } from './ChatInterface.js';
-import { DataInputPanel } from './DataInputPanel.js';
-import { SystemDashboard } from './SystemDashboard.js';
-import { AgentPanel } from './AgentPanel.js';
+import { frameworkInstance } from '@/core/orchestrator';
+import { FrameworkStatus, AgentInfo, Task } from '@/core/types';
+import { Header } from './Header';
+import { Sidebar } from './Sidebar';
+import { ChatInterface } from './ChatInterface';
+import { DataInputPanel } from './DataInputPanel';
+import { SystemDashboard } from './SystemDashboard';
+import { AgentPanel } from './AgentPanel';
+import { Settings } from './Settings';
 
-export type ViewMode = 'chat' | 'data' | 'dashboard' | 'agents';
+export type ViewMode = 'chat' | 'data' | 'dashboard' | 'agents' | 'settings';
 
 interface MainInterfaceProps {
   isDarkMode: boolean;
@@ -120,6 +121,14 @@ export const MainInterface: React.FC<MainInterfaceProps> = ({
             agents={agents}
             isInitialized={isInitialized}
             onRefresh={updateDashboardData}
+          />
+        );
+      case 'settings':
+        return (
+          <Settings
+            frameworkInstance={frameworkInstance}
+            isInitialized={isInitialized}
+            onConfigurationChange={updateDashboardData}
           />
         );
       default:

@@ -5,7 +5,7 @@
 
 import EventEmitter from 'eventemitter3';
 import { v4 as uuidv4 } from 'uuid';
-import { ESAFEvent, EventType, ESAFId, ESAFEventSchema } from './types.js';
+import { ESAFEvent, EventType, ESAFId, ESAFEventSchema } from './types';
 
 /**
  * Subscription handler function type

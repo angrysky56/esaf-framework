@@ -240,7 +240,7 @@
   .mobile-hidden {
     display: none;
   }
-  
+
   .mobile-full-width {
     width: 100%;
   }
@@ -253,6 +253,7 @@
 
 /* Utility classes for common patterns */
 .glass-effect {
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   background: rgba(255, 255, 255, 0.1);
 }

@@ -4,12 +4,12 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { frameworkInstance } from '@/core/orchestrator.js';
-import { FrameworkStatus, AgentInfo, Task, TaskPriority } from '@/core/types.js';
-import { AgentCard } from './AgentCard.js';
-import { TaskList } from './TaskList.js';
-import { EventLog } from './EventLog.js';
-import { LLMConfiguration } from './LLMConfiguration.js';
+import { frameworkInstance } from '@/core/orchestrator';
+import { FrameworkStatus, AgentInfo, Task, TaskPriority } from '@/core/types';
+import { AgentCard } from './AgentCard';
+import { TaskList } from './TaskList';
+import { EventLog } from './EventLog';
+import { LLMConfiguration } from './LLMConfiguration';
 
 /**
  * Main dashboard component managing the ESAF framework interface

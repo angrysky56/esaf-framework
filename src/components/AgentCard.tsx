@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { AgentInfo } from '@/core/types.js';
+import { AgentInfo } from '@/core/types';
 
 interface AgentCardProps {
   agent: AgentInfo;
@@ -50,6 +50,23 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent }) => {
     return 'Just now';
   };
 
+  /**
+   * Get LLM status color class
+   */
+  const getLLMStatusColor = (status?: string): string => {
+    switch (status) {
+      case 'connected':
+        return 'bg-green-100 text-green-800';
+      case 'disconnected':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'error':
+        return 'bg-red-100 text-red-800';
+      case 'unknown':
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   return (
     <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
       {/* Agent Header */}
@@ -68,6 +85,24 @@ export const AgentCard: React.FC<AgentCardProps> = ({ agent }) => {
         <p className="text-sm text-gray-600">
           <span className="font-medium">Framework:</span> {agent.framework}
         </p>
+      </div>
+
+      {/* LLM Configuration */}
+      <div className="mb-3">
+        <p className="text-sm text-gray-600 mb-1">
+          <span className="font-medium">LLM Model:</span>
+        </p>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-700">
+            {agent.llmProvider || 'Not configured'} 
+            {agent.llmModel && ` (${agent.llmModel})`}
+          </span>
+          {agent.llmStatus && (
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getLLMStatusColor(agent.llmStatus)}`}>
+              {agent.llmStatus.charAt(0).toUpperCase() + agent.llmStatus.slice(1)}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Algorithms */}

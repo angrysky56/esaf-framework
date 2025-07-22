@@ -3,9 +3,10 @@
  * @fileoverview Interface for uploading and processing various data types
  */
 
-import React, { useState, useCallback } from 'react';
-import { ESAFOrchestrator } from '@/core/orchestrator.js';
-import { TaskPriority } from '@/core/types.js';
+import React, { useState, useCallback, useEffect } from 'react';
+import { ESAFOrchestrator } from '@/core/orchestrator';
+import { TaskPriority } from '@/core/types';
+import { sharedDataContext, DataItem } from '@/core/shared-data-context';
 
 interface DataInputPanelProps {
   frameworkInstance: ESAFOrchestrator;
@@ -31,6 +32,7 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
   onTaskCreated
 }) => {
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
+  const [sharedDataItems, setSharedDataItems] = useState<DataItem[]>([]);
   const [textInput, setTextInput] = useState('');
   const [urlInput, setUrlInput] = useState('');
   const [jsonInput, setJsonInput] = useState('');
@@ -38,27 +40,57 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
+  // Subscribe to shared data context changes
+  useEffect(() => {
+    const updateSharedData = () => {
+      setSharedDataItems(sharedDataContext.getDataItems());
+    };
+
+    updateSharedData(); // Initial load
+    const unsubscribe = sharedDataContext.subscribe(updateSharedData);
+
+    return unsubscribe;
+  }, []);
+
   /**
    * Handle file upload via drag and drop
    */
-  const handleDrop = useCallback((e: React.DragEvent) => {
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
-    
+
     const files = Array.from(e.dataTransfer.files);
-    files.forEach(file => {
+
+    for (const file of files) {
       const dataSource: DataSource = {
         id: Date.now().toString() + Math.random(),
         name: file.name,
-        type: file.type.includes('json') ? 'json' : 
+        type: file.type.includes('json') ? 'json' :
               file.type.includes('csv') ? 'csv' : 'file',
         content: file,
         size: file.size,
         lastModified: file.lastModified
       };
-      
+
       setDataSources(prev => [...prev, dataSource]);
-    });
+
+      // Add to shared data context for chat access
+      try {
+        await sharedDataContext.addDataItem({
+          name: file.name,
+          content: file,
+          type: dataSource.type,
+          metadata: {
+            size: file.size,
+            lastModified: file.lastModified,
+            mimeType: file.type,
+            uploadedAt: Date.now()
+          }
+        });
+      } catch (error) {
+        console.warn('Failed to add file to shared context:', error);
+      }
+    }
   }, []);
 
   /**
@@ -70,29 +102,41 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
       const dataSource: DataSource = {
         id: Date.now().toString() + Math.random(),
         name: file.name,
-        type: file.type.includes('json') ? 'json' : 
+        type: file.type.includes('json') ? 'json' :
               file.type.includes('csv') ? 'csv' : 'file',
         content: file,
         size: file.size,
         lastModified: file.lastModified
       };
-      
+
       setDataSources(prev => [...prev, dataSource]);
     });
   };  /**
    * Add text data source
    */
-  const addTextData = () => {
+  const addTextData = async () => {
     if (!textInput.trim()) return;
-    
+
     const dataSource: DataSource = {
       id: Date.now().toString(),
       name: `Text Input (${new Date().toLocaleTimeString()})`,
       type: 'text',
       content: textInput
     };
-    
+
     setDataSources(prev => [...prev, dataSource]);
+
+    // Add to shared data context for chat access
+    try {
+      await sharedDataContext.addDataItem({
+        name: dataSource.name,
+        content: textInput,
+        type: 'text'
+      });
+    } catch (error) {
+      console.warn('Failed to add text to shared context:', error);
+    }
+
     setTextInput('');
   };
 
@@ -101,14 +145,14 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
    */
   const addUrlData = () => {
     if (!urlInput.trim()) return;
-    
+
     const dataSource: DataSource = {
       id: Date.now().toString(),
       name: `URL: ${urlInput}`,
       type: 'url',
       content: urlInput
     };
-    
+
     setDataSources(prev => [...prev, dataSource]);
     setUrlInput('');
   };
@@ -118,7 +162,7 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
    */
   const addJsonData = () => {
     if (!jsonInput.trim()) return;
-    
+
     try {
       JSON.parse(jsonInput); // Validate JSON
       const dataSource: DataSource = {
@@ -127,7 +171,7 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
         type: 'json',
         content: jsonInput
       };
-      
+
       setDataSources(prev => [...prev, dataSource]);
       setJsonInput('');
     } catch (error) {
@@ -147,9 +191,9 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
    */
   const processDataSources = async () => {
     if (dataSources.length === 0 || !isInitialized) return;
-    
+
     setIsProcessing(true);
-    
+
     try {
       // Create a comprehensive data processing task
       await frameworkInstance.createTask(
@@ -170,14 +214,14 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
         },
         TaskPriority.HIGH
       );
-      
+
       onTaskCreated();
-      
+
       // Clear processed data sources
       setDataSources([]);
-      
+
       alert(`Successfully created ${selectedProcessingType} task for ${dataSources.length} data source(s).`);
-      
+
     } catch (error) {
       console.error('Error processing data sources:', error);
       alert(`Failed to process data: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -193,7 +237,7 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
     if (!bytes) return 'Unknown size';
     const kb = bytes / 1024;
     const mb = kb / 1024;
-    
+
     if (mb > 1) return `${mb.toFixed(1)} MB`;
     if (kb > 1) return `${kb.toFixed(1)} KB`;
     return `${bytes} bytes`;
@@ -237,11 +281,11 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               📁 File Upload
             </h3>
-            
+
             <div
               className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                dragActive 
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                dragActive
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                   : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
               }`}
               onDragEnter={(e) => { e.preventDefault(); setDragActive(true); }}
@@ -282,7 +326,7 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               📝 Text Input
             </h3>
-            
+
             <div className="space-y-4">
               <textarea
                 value={textInput}
@@ -305,7 +349,7 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               🌐 URL Data Source
             </h3>
-            
+
             <div className="space-y-4">
               <input
                 type="url"
@@ -329,7 +373,7 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               📋 JSON Data
             </h3>
-            
+
             <div className="space-y-4">
               <textarea
                 value={jsonInput}
@@ -356,10 +400,18 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
                 📂 Data Sources ({dataSources.length})
               </h3>
               <div className="flex items-center space-x-4">
+                <label
+                  htmlFor="processing-type-select"
+                  className="sr-only"
+                >
+                  Select Processing Type
+                </label>
                 <select
+                  id="processing-type-select"
                   value={selectedProcessingType}
                   onChange={(e) => setSelectedProcessingType(e.target.value)}
                   className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  aria-label="Select Processing Type"
                 >
                   <option value="intelligent_analysis">🧠 Intelligent Analysis</option>
                   <option value="data_validation">🔍 Data Validation</option>
@@ -406,6 +458,8 @@ export const DataInputPanel: React.FC<DataInputPanelProps> = ({
                   <button
                     onClick={() => removeDataSource(source.id)}
                     className="p-2 text-red-600 hover:text-red-800 focus:outline-none"
+                    title="Remove data source"
+                    aria-label="Remove data source"
                   >
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

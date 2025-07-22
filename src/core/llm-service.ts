@@ -6,6 +6,7 @@
 import { GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
+import { ModelInfo, ModelCacheEntry, ProviderStatus } from './types.js';
 
 // Dynamic import for Ollama to avoid Node.js dependencies in browser
 const importOllama = async () => {
@@ -205,11 +206,54 @@ class LLMCache {
 }
 
 /**
+ * Model cache for storing fetched model lists with TTL
+ */
+class ModelCache {
+  private cache = new Map<string, ModelCacheEntry>();
+  private readonly DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
+
+  get(provider: string): ModelInfo[] | null {
+    const cached = this.cache.get(provider);
+    if (cached && cached.expiry > Date.now()) {
+      return cached.models;
+    }
+    if (cached) {
+      this.cache.delete(provider);
+    }
+    return null;
+  }
+
+  set(provider: string, models: ModelInfo[], ttl?: number): void {
+    this.cache.set(provider, {
+      models,
+      timestamp: Date.now(),
+      expiry: Date.now() + (ttl || this.DEFAULT_TTL),
+      provider
+    });
+  }
+
+  clear(provider?: string): void {
+    if (provider) {
+      this.cache.delete(provider);
+    } else {
+      this.cache.clear();
+    }
+  }
+
+  getProviders(): string[] {
+    const validEntries = Array.from(this.cache.entries())
+      .filter(([_, entry]) => entry.expiry > Date.now());
+    return validEntries.map(([provider]) => provider);
+  }
+}
+
+/**
  * Main LLM service class providing unified access to multiple providers
  */
 export class LLMService {
   private config: EnvironmentConfig;
   private cache: LLMCache;
+  private modelCache: ModelCache;
   private googleAI?: GoogleGenAI;
   private openai?: OpenAI;
   private anthropic?: Anthropic;
@@ -220,6 +264,7 @@ export class LLMService {
   constructor() {
     this.config = getConfig();
     this.cache = new LLMCache();
+    this.modelCache = new ModelCache();
     this.initializeProviders();
   }
 
@@ -243,15 +288,25 @@ export class LLMService {
    * Initialize LLM provider clients
    */
   private initializeProviders(): void {
+    console.log('🔧 Initializing LLM providers...');
+    console.log('Configuration:', {
+      GOOGLE_GENAI_API_KEY_EXISTS: !!this.config.GOOGLE_GENAI_API_KEY,
+      GOOGLE_GENAI_MODEL: this.config.GOOGLE_GENAI_MODEL,
+      DEFAULT_PROVIDER: this.config.DEFAULT_LLM_PROVIDER
+    });
+
     // Initialize Google GenAI
     if (this.config.GOOGLE_GENAI_API_KEY) {
       try {
         this.googleAI = new GoogleGenAI({
           apiKey: this.config.GOOGLE_GENAI_API_KEY
         });
+        console.log('✅ Google GenAI initialized successfully');
       } catch (error) {
-        console.warn('Failed to initialize Google GenAI:', error);
+        console.error('❌ Failed to initialize Google GenAI:', error);
       }
+    } else {
+      console.warn('⚠️ Google GenAI API key not found');
     }
 
     // Initialize OpenAI
@@ -299,6 +354,15 @@ export class LLMService {
    */
   async generateCompletion(request: LLMRequest): Promise<LLMResponse> {
     const provider = request.provider || this.config.DEFAULT_LLM_PROVIDER;
+    
+    console.log(`🚀 Generating completion with provider: ${provider}`);
+    console.log(`Request details:`, {
+      provider,
+      promptLength: request.prompt.length,
+      systemPromptLength: request.systemPrompt?.length || 0,
+      temperature: request.temperature,
+      maxTokens: request.maxTokens
+    });
 
     // Check cache if enabled
     if (this.config.ENABLE_LLM_CACHING) {
@@ -306,7 +370,7 @@ export class LLMService {
       const cached = this.cache.get(cacheKey);
       if (cached) {
         if (this.config.LLM_DEBUG_LOGGING) {
-          console.log('LLM cache hit:', cacheKey);
+          console.log('💾 LLM cache hit:', cacheKey);
         }
         return cached;
       }
@@ -372,17 +436,16 @@ export class LLMService {
     }
 
     try {
-      const contents = [];
+      // Google GenAI doesn't support system role - combine system prompt with user prompt
+      let combinedPrompt = request.prompt;
       if (request.systemPrompt) {
-        contents.push({
-          role: 'system' as const,
-          parts: [{ text: request.systemPrompt }]
-        });
+        combinedPrompt = `${request.systemPrompt}\n\nUser: ${request.prompt}`;
       }
-      contents.push({
+
+      const contents = [{
         role: 'user' as const,
-        parts: [{ text: request.prompt }]
-      });
+        parts: [{ text: combinedPrompt }]
+      }];
 
       const result = await this.googleAI.models.generateContent({
         model: this.config.GOOGLE_GENAI_MODEL,
@@ -626,8 +689,315 @@ Reasoning: Mock reasoning based on prompt content.`;
   }
 
   /**
-   * Get available providers based on configuration
+   * Fetch available models from Google Gemini API
    */
+  private async fetchGoogleGenAIModels(): Promise<ModelInfo[]> {
+    if (!this.googleAI) {
+      throw new Error('Google GenAI not initialized');
+    }
+
+    try {
+      const response = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models',
+        {
+          headers: {
+            'x-goog-api-key': this.config.GOOGLE_GENAI_API_KEY || ''
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Google API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const models: ModelInfo[] = [];
+
+      for (const model of data.models || []) {
+        // Only include models that support generateContent
+        if (model.supportedGenerationMethods?.includes('generateContent')) {
+          models.push({
+            id: model.baseModelId || model.name,
+            name: model.name,
+            displayName: model.displayName || model.baseModelId,
+            provider: LLMProvider.GOOGLE_GENAI,
+            type: 'text',
+            contextLength: model.inputTokenLimit,
+            maxTokens: model.outputTokenLimit,
+            status: 'available',
+            metadata: {
+              version: model.version,
+              description: model.description,
+              supportedMethods: model.supportedGenerationMethods
+            }
+          });
+        }
+      }
+
+      return models;
+    } catch (error) {
+      console.error('Failed to fetch Google GenAI models:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch available models from LM Studio
+   */
+  private async fetchLMStudioModels(): Promise<ModelInfo[]> {
+    try {
+      const response = await fetch(`${this.config.LM_STUDIO_BASE_URL}/api/v0/models`);
+      
+      if (!response.ok) {
+        throw new Error(`LM Studio API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const models: ModelInfo[] = [];
+
+      for (const model of data.data || []) {
+        models.push({
+          id: model.id,
+          name: model.id,
+          displayName: model.id,
+          provider: LLMProvider.LM_STUDIO,
+          type: model.type === 'vlm' ? 'multimodal' : model.type === 'embeddings' ? 'embedding' : 'text',
+          contextLength: model.max_context_length,
+          parameterSize: model.details?.parameter_size,
+          quantization: model.quantization,
+          status: model.state === 'loaded' ? 'loaded' : 'available',
+          metadata: {
+            arch: model.arch,
+            publisher: model.publisher,
+            compatibilityType: model.compatibility_type
+          }
+        });
+      }
+
+      return models;
+    } catch (error) {
+      console.error('Failed to fetch LM Studio models:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch available models from Ollama
+   */
+  private async fetchOllamaModels(): Promise<ModelInfo[]> {
+    try {
+      const response = await fetch(`${this.config.OLLAMA_BASE_URL}/api/tags`);
+      
+      if (!response.ok) {
+        throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const models: ModelInfo[] = [];
+
+      for (const model of data.models || []) {
+        models.push({
+          id: model.name,
+          name: model.name,
+          displayName: model.name,
+          provider: LLMProvider.OLLAMA,
+          type: 'text',
+          parameterSize: model.details?.parameter_size,
+          quantization: model.details?.quantization_level,
+          status: 'available',
+          metadata: {
+            size: model.size,
+            digest: model.digest,
+            family: model.details?.family,
+            format: model.details?.format,
+            expiresAt: model.expires_at
+          }
+        });
+      }
+
+      return models;
+    } catch (error) {
+      console.error('Failed to fetch Ollama models:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch available models from OpenAI
+   */
+  private async fetchOpenAIModels(): Promise<ModelInfo[]> {
+    if (!this.openai) {
+      throw new Error('OpenAI not initialized');
+    }
+
+    try {
+      const models = await this.openai.models.list();
+      const modelList: ModelInfo[] = [];
+
+      for (const model of models.data) {
+        // Filter for chat completion models
+        if (model.id.includes('gpt') || model.id.includes('o1')) {
+          modelList.push({
+            id: model.id,
+            name: model.id,
+            displayName: model.id,
+            provider: LLMProvider.OPENAI,
+            type: 'text',
+            status: 'available',
+            metadata: {
+              created: model.created,
+              ownedBy: model.owned_by
+            }
+          });
+        }
+      }
+
+      return modelList;
+    } catch (error) {
+      console.error('Failed to fetch OpenAI models:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch available models from Anthropic
+   */
+  private async fetchAnthropicModels(): Promise<ModelInfo[]> {
+    // Anthropic doesn't provide a models API, so we return the known models
+    const knownModels = [
+      'claude-3-5-sonnet-20241022',
+      'claude-3-5-haiku-20241022',
+      'claude-3-opus-20240229',
+      'claude-3-sonnet-20240229',
+      'claude-3-haiku-20240307',
+      'claude-sonnet-4-20250514'
+    ];
+
+    return knownModels.map(modelId => ({
+      id: modelId,
+      name: modelId,
+      displayName: modelId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      provider: LLMProvider.ANTHROPIC,
+      type: 'text' as const,
+      status: 'available' as const,
+      metadata: {
+        note: 'Anthropic does not provide a models API, this is a known model list'
+      }
+    }));
+  }
+
+  /**
+   * Get available models for a specific provider with caching
+   */
+  async getModelsForProvider(provider: LLMProvider, forceRefresh = false): Promise<ModelInfo[]> {
+    // Check cache first
+    if (!forceRefresh) {
+      const cached = this.modelCache.get(provider);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    let models: ModelInfo[] = [];
+
+    try {
+      switch (provider) {
+        case LLMProvider.GOOGLE_GENAI:
+          models = await this.fetchGoogleGenAIModels();
+          break;
+        case LLMProvider.LM_STUDIO:
+          models = await this.fetchLMStudioModels();
+          break;
+        case LLMProvider.OLLAMA:
+          models = await this.fetchOllamaModels();
+          break;
+        case LLMProvider.OPENAI:
+          models = await this.fetchOpenAIModels();
+          break;
+        case LLMProvider.ANTHROPIC:
+          models = await this.fetchAnthropicModels();
+          break;
+        default:
+          throw new Error(`Unsupported provider: ${provider}`);
+      }
+
+      // Cache the results
+      this.modelCache.set(provider, models);
+      return models;
+    } catch (error) {
+      console.error(`Failed to fetch models for ${provider}:`, error);
+      // Return cached models if available, even if expired
+      const cached = this.modelCache.get(provider);
+      if (cached) {
+        console.warn(`Using cached models for ${provider} due to fetch error`);
+        return cached;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Get all available models from all providers
+   */
+  async getAllModels(forceRefresh = false): Promise<{ [provider: string]: ModelInfo[] }> {
+    const availableProviders = this.getAvailableProviders();
+    const results: { [provider: string]: ModelInfo[] } = {};
+
+    await Promise.allSettled(
+      availableProviders.map(async (provider) => {
+        try {
+          results[provider] = await this.getModelsForProvider(provider, forceRefresh);
+        } catch (error) {
+          console.error(`Failed to fetch models for ${provider}:`, error);
+          results[provider] = [];
+        }
+      })
+    );
+
+    return results;
+  }
+
+  /**
+   * Check provider health and model availability
+   */
+  async checkProviderStatus(provider: LLMProvider): Promise<ProviderStatus> {
+    const startTime = Date.now();
+    
+    try {
+      const models = await this.getModelsForProvider(provider);
+      const latency = Date.now() - startTime;
+      
+      return {
+        provider,
+        available: true,
+        lastChecked: Date.now(),
+        latency,
+        modelCount: models.length
+      };
+    } catch (error) {
+      return {
+        provider,
+        available: false,
+        lastChecked: Date.now(),
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
+  /**
+   * Get health status for all providers
+   */
+  async getProvidersStatus(): Promise<ProviderStatus[]> {
+    const providers = Object.values(LLMProvider);
+    const results = await Promise.allSettled(
+      providers.map(provider => this.checkProviderStatus(provider))
+    );
+
+    return results
+      .filter((result): result is PromiseFulfilledResult<ProviderStatus> => 
+        result.status === 'fulfilled')
+      .map(result => result.value);
+  }
   getAvailableProviders(): LLMProvider[] {
     const providers: LLMProvider[] = [];
 
@@ -679,6 +1049,13 @@ Reasoning: Mock reasoning based on prompt content.`;
    */
   clearCache(): void {
     this.cache.clear();
+  }
+
+  /**
+   * Clear the model cache for a specific provider or all providers
+   */
+  clearModelCache(provider?: LLMProvider): void {
+    this.modelCache.clear(provider);
   }
 
   /**

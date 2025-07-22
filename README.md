@@ -40,7 +40,10 @@ The ESAF Framework represents an evolution in multi-agent system design, moving 
 
 4. **Specialized Agents**
    - **Data Analysis Agent (DA)**: Bayesian data processing, validation, feature extraction
-   - *Future agents*: Optimization, Game Theory, Swarm Intelligence, Decision Making
+   - **Optimization Agent (OA)**: Linear programming, constraint formulation, algorithm selection
+   - **Game Theory Agent (GT)**: Strategic analysis, equilibrium computation, conflict resolution
+   - **Swarm Intelligence Agent (SI)**: Adaptive learning, emergent behavior, system optimization
+   - **Decision Making Agent (DM)**: Multi-criteria analysis, stakeholder synthesis, final recommendations
 
 ### Agent Communication Flow
 
@@ -48,6 +51,51 @@ The ESAF Framework represents an evolution in multi-agent system design, moving 
 User Request → Orchestrator → Task Creation → Agent Assignment →
 Processing → Event Publishing → Result Collection → Response
 ```
+
+## 🧠 Dynamic Model Fetching
+
+The ESAF Framework includes sophisticated dynamic model fetching capabilities that automatically discover and manage available models across all supported LLM providers.
+
+### Supported Providers & Dynamic Discovery
+
+| Provider | Discovery Method | Real-time Fetching |
+|----------|------------------|-------------------|
+| **Google Gemini** | `/v1beta/models` API | ✅ Live from Google |
+| **LM Studio** | `/api/v0/models` REST | ✅ Local server |
+| **Ollama** | `/api/tags` endpoint | ✅ Local models |
+| **OpenAI** | `models.list()` SDK | ✅ Live from OpenAI |
+| **Anthropic** | Known model list | 📋 Static catalog |
+
+### Key Features
+
+- **🔄 Real-time Discovery**: Fetches available models directly from provider APIs
+- **💾 Intelligent Caching**: 5-minute TTL reduces API calls while staying current
+- **🏥 Health Monitoring**: Tracks provider availability and latency
+- **⚡ Bulk Operations**: Fetch from all providers simultaneously
+- **🛡️ Error Resilience**: Graceful fallbacks when providers are unavailable
+
+### Usage Example
+
+```typescript
+import { llmService, LLMProvider } from '@/core/llm-service';
+
+// Get models for a specific provider
+const models = await llmService.getModelsForProvider(LLMProvider.GOOGLE_GENAI);
+
+// Check provider health
+const status = await llmService.checkProviderStatus(LLMProvider.OLLAMA);
+
+// Get all models from all providers
+const allModels = await llmService.getAllModels();
+```
+
+### Testing Dynamic Models
+
+```bash
+node test-dynamic-models.js
+```
+
+See [DYNAMIC_MODEL_FETCHING.md](./DYNAMIC_MODEL_FETCHING.md) for comprehensive documentation.
 
 ## 🚀 Getting Started
 
@@ -80,6 +128,10 @@ sudo apt install -y libwebkit2gtk-4.0-dev libgtk-3-dev librsvg2-dev patchelf lib
 
 ```bash
 sudo apt install -y libayatana-appindicator3-dev
+```
+
+```bash
+sudo apt update && sudo apt install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 ```
 
 If process left running:
@@ -129,6 +181,38 @@ const result = frameworkInstance.getResult(taskId);
 console.log('Analysis result:', result);
 ```
 
+### Complete ESAF Workflow Example
+
+```typescript
+// Execute a complete multi-agent analysis workflow
+const workflowResults = await frameworkInstance.executeCompleteWorkflow(
+  {
+    // Your data to analyze
+    salesData: [100, 120, 95, 140, 160],
+    customerFeedback: ["positive", "neutral", "positive"],
+    marketConditions: { competition: "high", demand: "growing" }
+  },
+  [
+    "Optimize sales performance",
+    "Improve customer satisfaction",
+    "Strategic market positioning"
+  ],
+  {
+    constraints: ["budget < 100000", "timeline < 6months"],
+    stakeholders: ["sales_team", "customers", "management"],
+    riskTolerance: "moderate"
+  }
+);
+
+console.log('Complete Analysis Results:', {
+  dataInsights: workflowResults.dataAnalysis,
+  optimizationPlan: workflowResults.optimization,
+  strategicAnalysis: workflowResults.gameTheory,
+  adaptiveLearning: workflowResults.swarmIntelligence,
+  finalRecommendation: workflowResults.finalDecision
+});
+```
+
 ## 📋 Available Task Types
 
 ### Data Analysis Agent (DA)
@@ -137,6 +221,42 @@ console.log('Analysis result:', result);
 - **`feature_extraction`**: Extract statistical features from data objects
 - **`anomaly_detection`**: Detect outliers and structural anomalies
 - **`data_backup`**: Version and backup data with metadata
+- **`intelligent_analysis`**: General intelligent data analysis for complex queries
+
+### Optimization Agent (OA)
+
+- **`constraint_formulation`**: Formulate mathematical constraints from problem descriptions
+- **`algorithm_selection`**: Select optimal algorithms (Simplex, Genetic, Multi-objective)
+- **`solve_optimization`**: Solve optimization problems using selected algorithms
+- **`multi_objective_optimization`**: Handle multiple competing objectives with Pareto analysis
+- **`constraint_relaxation`**: Relax infeasible constraints to find solutions
+
+### Game Theory Agent (GT)
+
+- **`strategy_formulation`**: Formulate optimal strategies for strategic interactions
+- **`equilibrium_analysis`**: Calculate Nash, Stackelberg, and other equilibria
+- **`conflict_resolution`**: Resolve conflicts between competing interests
+- **`risk_assessment`**: Assess strategic risks and uncertainties
+- **`coalition_analysis`**: Analyze coalition formation and stability
+- **`mechanism_design`**: Design mechanisms for desired strategic outcomes
+
+### Swarm Intelligence Agent (SI)
+
+- **`adaptive_learning`**: Perform adaptive learning with dynamic parameter adjustment
+- **`swarm_optimization`**: Run swarm algorithms (PSO, ACO, Tabu Search, Simulated Annealing)
+- **`learning_rate_control`**: Control and adjust learning rates dynamically
+- **`emergent_behavior_analysis`**: Analyze emergent behavior in multi-agent systems
+- **`memory_retention`**: Optimize memory retention and forgetting mechanisms
+- **`system_adaptation`**: Adapt entire system based on performance feedback
+
+### Decision Making Agent (DM)
+
+- **`decision_integration`**: Integrate inputs from all agents into cohesive decisions
+- **`multi_criteria_analysis`**: Perform MCDA using various methods (Weighted Sum, TOPSIS, AHP)
+- **`contingency_planning`**: Develop comprehensive contingency plans
+- **`fallback_strategy`**: Create fallback strategies for critical failures
+- **`stakeholder_synthesis`**: Synthesize inputs from multiple stakeholders
+- **`final_recommendation`**: Generate final comprehensive recommendations
 
 ### Task Payload Examples
 
@@ -163,6 +283,41 @@ console.log('Analysis result:', result);
 // Anomaly Detection
 {
   data: unknown[] | object
+}
+
+// Optimization - Algorithm Selection
+{
+  problemType: string,
+  constraints: OptimizationConstraint[],
+  variables: OptimizationVariable[],
+  objectives: string[],
+  complexity?: 'low' | 'medium' | 'high'
+}
+
+// Game Theory - Strategy Formulation
+{
+  scenario: string,
+  players: GamePlayer[],
+  objectives: Record<string, string>,
+  constraints?: string[],
+  informationStructure?: string
+}
+
+// Swarm Intelligence - Adaptive Learning
+{
+  performanceData: number[],
+  currentParameters: LearningParameters,
+  adaptationGoals: string[],
+  constraints?: Record<string, any>
+}
+
+// Decision Making - Integration
+{
+  agentInputs: Record<string, any>,
+  decisionContext: DecisionContext,
+  criteria: DecisionCriteria[],
+  alternatives: DecisionAlternative[],
+  stakeholderInputs?: Record<string, any>
 }
 ```
 
@@ -255,23 +410,24 @@ The ESAF framework implements multiple safety layers:
 
 ## 🔮 Roadmap
 
-### Phase 1 (Current) - Foundation
+### Phase 1 (Completed) - Foundation ✅
 - ✅ Cognitive Substrate implementation
-- ✅ Data Analysis Agent
+- ✅ Data Analysis Agent (DA)
 - ✅ React Dashboard
 - ✅ Event-driven architecture
 
-### Phase 2 - Agent Expansion
-- 🔄 Optimization Agent (OA)
-- 🔄 Game Theory Agent (GT)
-- 🔄 Swarm Intelligence Agent (SI)
-- 🔄 Decision Making Agent (DM)
+### Phase 2 (Completed) - Agent Expansion ✅
+- ✅ Optimization Agent (OA) - Linear programming, constraint optimization
+- ✅ Game Theory Agent (GT) - Strategic analysis, equilibrium computation
+- ✅ Swarm Intelligence Agent (SI) - Adaptive learning, emergent behavior
+- ✅ Decision Making Agent (DM) - Multi-criteria analysis, final synthesis
 
-### Phase 3 - Advanced Features
+### Phase 3 - Advanced Features (In Progress)
 - 🔄 Governance Agent with veto power
 - 🔄 Agent Foundry (dynamic agent creation)
 - 🔄 Systemic World Model
 - 🔄 Advanced constraint systems
+- 🔄 Enhanced multi-agent workflows
 
 ### Phase 4 - Intelligence Emergence
 - 🔄 Cross-agent learning

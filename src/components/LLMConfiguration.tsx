@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { llmService, LLMProvider } from '@/core/llm-service.js';
+import { llmService, LLMProvider } from '@/core/llm-service';
 
 interface LLMStatus {
   provider: LLMProvider;

@@ -4,8 +4,8 @@
  */
 
 import React from 'react';
-import { FrameworkStatus } from '@/core/types.js';
-import { ViewMode } from './MainInterface.js';
+import { FrameworkStatus } from '@/core/types';
+import { ViewMode } from './MainInterface';
 
 interface HeaderProps {
   currentView: ViewMode;
@@ -43,12 +43,14 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onMenuToggle}
             className="p-2 rounded-md text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="Open menu"
+            aria-label="Open menu"
           >
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          
+
           <div>
             <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
               {getViewTitle(currentView)}

@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { frameworkInstance } from '@/core/orchestrator.js';
-import { ESAFEvent, EventType } from '@/core/types.js';
+import { frameworkInstance } from '@/core/orchestrator';
+import { ESAFEvent, EventType } from '@/core/types';
 
 /**
  * Component for displaying real-time event log from the Cognitive Substrate

@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Task, TaskPriority } from '@/core/types.js';
+import { Task, TaskPriority } from '@/core/types';
 
 interface TaskListProps {
   tasks: Task[];

@@ -76,7 +76,10 @@ export const AgentInfoSchema = z.object({
   algorithms: z.array(z.string()),
   status: z.enum(['idle', 'busy', 'error', 'offline']),
   lastActivity: z.number(),
-  taskQueue: z.array(z.string())
+  taskQueue: z.array(z.string()),
+  llmProvider: z.string().optional(),
+  llmModel: z.string().optional(),
+  llmStatus: z.enum(['connected', 'disconnected', 'error', 'unknown']).optional()
 });
 
 export type AgentInfo = z.infer<typeof AgentInfoSchema>;
@@ -151,4 +154,45 @@ export interface FrameworkStatus {
   completedTasks: number;
   failedTasks: number;
   uptime: number;
+}
+
+/**
+ * Standardized model information across all providers
+ */
+export const ModelInfoSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  displayName: z.string().optional(),
+  provider: z.string(),
+  type: z.enum(['text', 'multimodal', 'embedding', 'vision']).optional(),
+  contextLength: z.number().optional(),
+  maxTokens: z.number().optional(),
+  parameterSize: z.string().optional(),
+  quantization: z.string().optional(),
+  status: z.enum(['available', 'loaded', 'not-loaded', 'downloading', 'error']).optional(),
+  metadata: z.record(z.unknown()).optional()
+});
+
+export type ModelInfo = z.infer<typeof ModelInfoSchema>;
+
+/**
+ * Model cache entry for storing fetched model lists
+ */
+export interface ModelCacheEntry {
+  models: ModelInfo[];
+  timestamp: number;
+  expiry: number;
+  provider: string;
+}
+
+/**
+ * Provider health status for monitoring connectivity
+ */
+export interface ProviderStatus {
+  provider: string;
+  available: boolean;
+  lastChecked: number;
+  latency?: number;
+  error?: string;
+  modelCount?: number;
 }

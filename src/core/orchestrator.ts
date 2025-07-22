@@ -3,9 +3,13 @@
  * @fileoverview Coordinates all agents and manages the framework lifecycle
  */
 
-import { CognitiveSubstrate } from '@/core/cognitive-substrate.js';
-import { CognitiveDataAnalysisAgent } from '@/agents/cognitive-data-analysis-agent.js';
-import { LLMProvider } from '@/core/llm-service.js';
+import { CognitiveSubstrate } from '@/core/cognitive-substrate';
+import { DataAnalysisAgent } from '@/agents/data-analysis-agent';
+import { OptimizationAgent } from '@/agents/optimization-agent';
+import { GameTheoryAgent } from '@/agents/game-theory-agent';
+import { SwarmIntelligenceAgent } from '@/agents/swarm-intelligence-agent';
+import { DecisionMakingAgent } from '@/agents/decision-making-agent';
+import { LLMProvider } from '@/core/llm-service';
 import { 
   Task, 
   TaskPriority, 
@@ -14,7 +18,7 @@ import {
   AgentInfo,
   AnalysisResult,
   TaskSchema 
-} from '@/core/types.js';
+} from '@/core/types';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -73,9 +77,21 @@ export class ESAFOrchestrator {
 
     this.startTime = Date.now();
 
-    // Initialize the Cognitive Data Analysis agent
-    const cognitiveDataAgent = new CognitiveDataAnalysisAgent(LLMProvider.GOOGLE_GENAI);
-    await this.registerAgent(cognitiveDataAgent);
+    // Initialize all ESAF core agents with REAL algorithms
+    const realDataAgent = new DataAnalysisAgent(LLMProvider.GOOGLE_GENAI);
+    await this.registerAgent(realDataAgent);
+
+    const optimizationAgent = new OptimizationAgent(LLMProvider.GOOGLE_GENAI);
+    await this.registerAgent(optimizationAgent);
+
+    const gameTheoryAgent = new GameTheoryAgent(LLMProvider.GOOGLE_GENAI);
+    await this.registerAgent(gameTheoryAgent);
+
+    const swarmIntelligenceAgent = new SwarmIntelligenceAgent(LLMProvider.GOOGLE_GENAI);
+    await this.registerAgent(swarmIntelligenceAgent);
+
+    const decisionMakingAgent = new DecisionMakingAgent(LLMProvider.GOOGLE_GENAI);
+    await this.registerAgent(decisionMakingAgent);
 
     // Subscribe to framework events
     this.setupEventSubscriptions();
@@ -85,7 +101,12 @@ export class ESAFOrchestrator {
     await this.substrate.publish(
       EventType.TASK_STARTED,
       'orchestrator',
-      { message: 'ESAF Framework initialized', config: this.config }
+      { 
+        message: 'ESAF Framework initialized with all core agents',
+        config: this.config,
+        agentCount: this.agents.size,
+        registeredAgents: Array.from(this.agents.values()).map(a => ({ id: a.id, name: a.name, type: a.type }))
+      }
     );
   }
 
@@ -156,12 +177,38 @@ export class ESAFOrchestrator {
    * Assign a task to the most suitable agent
    */
   private async assignTask(task: Task): Promise<void> {
-    // For now, route data-related tasks to the DA agent
-    // In a full implementation, this would use sophisticated agent selection logic
     let targetAgent: any = null;
 
-    if (task.type.includes('data') || task.type.includes('validation') || task.type.includes('feature') || task.type.includes('intelligent')) {
-      targetAgent = Array.from(this.agents.values()).find(agent => agent.type === 'CognitiveDataAnalysis');
+    // Enhanced task routing logic for all ESAF agents
+    if (task.type.includes('data') || task.type.includes('validation') || 
+        task.type.includes('feature') || task.type.includes('intelligent') ||
+        task.type.includes('anomaly') || task.type.includes('backup')) {
+      targetAgent = Array.from(this.agents.values()).find(agent => agent.type === 'DataAnalysis');
+    }
+    
+    else if (task.type.includes('optimization') || task.type.includes('constraint') || 
+             task.type.includes('algorithm_selection') || task.type.includes('solve') ||
+             task.type.includes('multi_objective') || task.type.includes('relaxation')) {
+      targetAgent = Array.from(this.agents.values()).find(agent => agent.type === 'OptimizationAgent');
+    }
+    
+    else if (task.type.includes('strategy') || task.type.includes('equilibrium') || 
+             task.type.includes('conflict') || task.type.includes('coalition') ||
+             task.type.includes('game') || task.type.includes('mechanism')) {
+      targetAgent = Array.from(this.agents.values()).find(agent => agent.type === 'GameTheoryAgent');
+    }
+    
+    else if (task.type.includes('adaptive') || task.type.includes('swarm') || 
+             task.type.includes('learning') || task.type.includes('emergent') ||
+             task.type.includes('memory') || task.type.includes('system_adaptation')) {
+      targetAgent = Array.from(this.agents.values()).find(agent => agent.type === 'SwarmIntelligenceAgent');
+    }
+    
+    else if (task.type.includes('decision') || task.type.includes('integration') || 
+             task.type.includes('criteria') || task.type.includes('contingency') ||
+             task.type.includes('fallback') || task.type.includes('stakeholder') ||
+             task.type.includes('final_recommendation')) {
+      targetAgent = Array.from(this.agents.values()).find(agent => agent.type === 'DecisionMakingAgent');
     }
 
     if (targetAgent) {
@@ -173,9 +220,33 @@ export class ESAFOrchestrator {
         const result = await targetAgent.processTask(task);
         this.results.set(task.id, result);
         task.status = 'completed';
+        
+        await this.substrate.publish(
+          EventType.TASK_COMPLETED,
+          'orchestrator',
+          { 
+            message: `Task ${task.id} completed successfully`,
+            taskType: task.type,
+            agentUsed: targetAgent.type,
+            confidence: result.confidence
+          },
+          task.id
+        );
       } catch (error) {
         task.status = 'failed';
         console.error(`Task ${task.id} failed:`, error);
+        
+        await this.substrate.publish(
+          EventType.TASK_FAILED,
+          'orchestrator',
+          { 
+            message: `Task ${task.id} failed`,
+            taskType: task.type,
+            error: error instanceof Error ? error.message : String(error),
+            agentAttempted: targetAgent.type
+          },
+          task.id
+        );
       }
     } else {
       await this.substrate.publish(
@@ -183,7 +254,8 @@ export class ESAFOrchestrator {
         'orchestrator',
         { 
           message: `No suitable agent found for task type: ${task.type}`,
-          taskId: task.id
+          taskId: task.id,
+          availableAgents: Array.from(this.agents.values()).map(a => a.type)
         },
         task.id
       );
@@ -242,6 +314,178 @@ export class ESAFOrchestrator {
    */
   getEventHistory(limit?: number) {
     return this.substrate.getEventHistory(limit);
+  }
+
+  /**
+   * Convenience method: Create a data analysis task
+   */
+  async createDataAnalysisTask(
+    type: 'data_validation' | 'feature_extraction' | 'anomaly_detection' | 'data_backup' | 'intelligent_analysis',
+    payload: Record<string, unknown>,
+    priority: TaskPriority = TaskPriority.MEDIUM
+  ): Promise<ESAFId> {
+    return this.createTask(type, payload, priority);
+  }
+
+  /**
+   * Convenience method: Create an optimization task
+   */
+  async createOptimizationTask(
+    type: 'constraint_formulation' | 'algorithm_selection' | 'solve_optimization' | 'multi_objective_optimization' | 'constraint_relaxation',
+    payload: Record<string, unknown>,
+    priority: TaskPriority = TaskPriority.MEDIUM
+  ): Promise<ESAFId> {
+    return this.createTask(type, payload, priority);
+  }
+
+  /**
+   * Convenience method: Create a game theory task
+   */
+  async createGameTheoryTask(
+    type: 'strategy_formulation' | 'equilibrium_analysis' | 'conflict_resolution' | 'risk_assessment' | 'coalition_analysis' | 'mechanism_design',
+    payload: Record<string, unknown>,
+    priority: TaskPriority = TaskPriority.MEDIUM
+  ): Promise<ESAFId> {
+    return this.createTask(type, payload, priority);
+  }
+
+  /**
+   * Convenience method: Create a swarm intelligence task
+   */
+  async createSwarmIntelligenceTask(
+    type: 'adaptive_learning' | 'swarm_optimization' | 'learning_rate_control' | 'emergent_behavior_analysis' | 'memory_retention' | 'system_adaptation',
+    payload: Record<string, unknown>,
+    priority: TaskPriority = TaskPriority.MEDIUM
+  ): Promise<ESAFId> {
+    return this.createTask(type, payload, priority);
+  }
+
+  /**
+   * Convenience method: Create a decision making task
+   */
+  async createDecisionMakingTask(
+    type: 'decision_integration' | 'multi_criteria_analysis' | 'contingency_planning' | 'fallback_strategy' | 'stakeholder_synthesis' | 'final_recommendation',
+    payload: Record<string, unknown>,
+    priority: TaskPriority = TaskPriority.MEDIUM
+  ): Promise<ESAFId> {
+    return this.createTask(type, payload, priority);
+  }
+
+  /**
+   * Execute a complete ESAF analysis workflow
+   * Runs all agents in sequence for comprehensive analysis
+   */
+  async executeCompleteWorkflow(
+    initialData: any,
+    analysisGoals: string[],
+    context?: Record<string, any>
+  ): Promise<{
+    dataAnalysis: AnalysisResult;
+    optimization: AnalysisResult;
+    gameTheory: AnalysisResult;
+    swarmIntelligence: AnalysisResult;
+    finalDecision: AnalysisResult;
+  }> {
+    const workflowResults: any = {};
+
+    try {
+      // Step 1: Data Analysis
+      const dataTaskId = await this.createDataAnalysisTask('intelligent_analysis', {
+        data: initialData,
+        query: analysisGoals.join(', '),
+        context
+      });
+      
+      // Wait for completion (in a real implementation, this would be more sophisticated)
+      await this.waitForTaskCompletion(dataTaskId);
+      workflowResults.dataAnalysis = this.getResult(dataTaskId);
+
+      // Step 2: Optimization Analysis
+      const optimizationTaskId = await this.createOptimizationTask('algorithm_selection', {
+        problemType: 'multi_objective',
+        constraints: context?.constraints || [],
+        variables: context?.variables || [],
+        objectives: analysisGoals
+      });
+      
+      await this.waitForTaskCompletion(optimizationTaskId);
+      workflowResults.optimization = this.getResult(optimizationTaskId);
+
+      // Step 3: Game Theory Analysis
+      const gameTheoryTaskId = await this.createGameTheoryTask('strategy_formulation', {
+        scenario: 'Multi-agent decision scenario',
+        players: context?.stakeholders || [],
+        objectives: analysisGoals.reduce((obj, goal, idx) => {
+          obj[`stakeholder_${idx}`] = goal;
+          return obj;
+        }, {} as Record<string, string>)
+      });
+      
+      await this.waitForTaskCompletion(gameTheoryTaskId);
+      workflowResults.gameTheory = this.getResult(gameTheoryTaskId);
+
+      // Step 4: Swarm Intelligence Analysis
+      const swarmTaskId = await this.createSwarmIntelligenceTask('adaptive_learning', {
+        performanceData: [0.7, 0.8, 0.75, 0.85, 0.9], // Example performance metrics
+        currentParameters: {
+          learningRate: 0.1,
+          decayFactor: 0.9,
+          explorationRate: 0.3,
+          memoryDepth: 10,
+          adaptationThreshold: 0.1
+        },
+        adaptationGoals: analysisGoals
+      });
+      
+      await this.waitForTaskCompletion(swarmTaskId);
+      workflowResults.swarmIntelligence = this.getResult(swarmTaskId);
+
+      // Step 5: Final Decision Integration
+      const decisionTaskId = await this.createDecisionMakingTask('decision_integration', {
+        agentInputs: {
+          dataAnalysis: workflowResults.dataAnalysis?.result,
+          optimization: workflowResults.optimization?.result,
+          gameTheory: workflowResults.gameTheory?.result,
+          swarmIntelligence: workflowResults.swarmIntelligence?.result
+        },
+        decisionContext: context || {},
+        criteria: [
+          { id: 'accuracy', name: 'Accuracy', weight: 0.6, type: 'benefit', scale: 'ratio' },
+          { id: 'relevance', name: 'Relevance', weight: 0.4, type: 'benefit', scale: 'ratio' }
+        ],
+        alternatives: [
+          { id: 'recommended', name: 'Primary Recommendation', scores: { accuracy: 0.9, relevance: 0.8 } },
+          { id: 'alternative', name: 'Alternative Approach', scores: { accuracy: 0.8, relevance: 0.9 } }
+        ]
+      });
+      
+      await this.waitForTaskCompletion(decisionTaskId);
+      workflowResults.finalDecision = this.getResult(decisionTaskId);
+
+      return workflowResults;
+    } catch (error) {
+      console.error('Complete workflow execution failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Wait for a task to complete (public method for ChatInterface)
+   */
+  async waitForTaskCompletion(taskId: ESAFId, timeoutMs: number = 30000): Promise<void> {
+    const startTime = Date.now();
+    
+    while (Date.now() - startTime < timeoutMs) {
+      const task = this.getTask(taskId);
+      if (task?.status === 'completed' || task?.status === 'failed') {
+        return;
+      }
+      
+      // Wait 100ms before checking again
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    throw new Error(`Task ${taskId} timed out after ${timeoutMs}ms`);
   }
 
   /**

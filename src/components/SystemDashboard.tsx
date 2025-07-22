@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { FrameworkStatus, Task } from '@/core/types.js';
+import { FrameworkStatus, Task } from '@/core/types';
 
 interface SystemDashboardProps {
   status: FrameworkStatus | null;

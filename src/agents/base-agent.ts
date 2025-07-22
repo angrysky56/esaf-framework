@@ -3,8 +3,8 @@
  * @fileoverview Defines the common contract and behavior for all ESAF agents
  */
 
-import { ICognitiveSubstrate } from '../core/cognitive-substrate.js';
-import { Task, AgentInfo, ESAFId, EventType, AnalysisResult } from '../core/types.js';
+import { ICognitiveSubstrate } from '../core/cognitive-substrate';
+import { Task, AgentInfo, ESAFId, EventType, AnalysisResult } from '../core/types';
 
 /**
  * Base interface that all ESAF agents must implement
@@ -75,6 +75,11 @@ export abstract class BaseESAFAgent implements IESAFAgent {
   protected lastActivity: number = Date.now();
   protected taskQueue: ESAFId[] = [];
   protected subscriptions: (() => void)[] = [];
+  
+  // LLM Configuration tracking
+  protected llmProvider?: string;
+  protected llmModel?: string;
+  protected llmStatus: 'connected' | 'disconnected' | 'error' | 'unknown' = 'unknown';
 
   constructor(
     id: ESAFId,
@@ -98,6 +103,11 @@ export abstract class BaseESAFAgent implements IESAFAgent {
     this.status = 'idle';
     this.lastActivity = Date.now();
 
+    // Test LLM connectivity if provider is configured
+    if (this.llmProvider) {
+      await this.testLLMConnectivity();
+    }
+
     // Subscribe to relevant events
     await this.setupSubscriptions();
 
@@ -110,6 +120,31 @@ export abstract class BaseESAFAgent implements IESAFAgent {
         agentInfo: this.getInfo()
       }
     );
+  }
+
+  /**
+   * Test LLM connectivity and update status
+   */
+  protected async testLLMConnectivity(): Promise<void> {
+    try {
+      // Import LLM service dynamically to avoid circular dependencies
+      const { llmService } = await import('../core/llm-service');
+      
+      // Try to get available models for the provider
+      const response = await llmService.generateCompletion({
+        prompt: "Hello",
+        systemPrompt: "Respond with just 'OK'",
+        temperature: 0,
+        maxTokens: 10,
+        provider: this.llmProvider as any
+      });
+      
+      this.llmModel = response.model;
+      this.llmStatus = 'connected';
+    } catch (error) {
+      console.warn(`LLM connectivity test failed for ${this.name}:`, error);
+      this.llmStatus = 'error';
+    }
   }
 
   /**
@@ -179,7 +214,10 @@ export abstract class BaseESAFAgent implements IESAFAgent {
       algorithms: this.algorithms,
       status: this.status,
       lastActivity: this.lastActivity,
-      taskQueue: [...this.taskQueue]
+      taskQueue: [...this.taskQueue],
+      llmProvider: this.llmProvider,
+      llmModel: this.llmModel,
+      llmStatus: this.llmStatus
     };
   }
 

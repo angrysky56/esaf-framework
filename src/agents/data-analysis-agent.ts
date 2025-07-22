@@ -1,433 +1,597 @@
 /**
- * Data Analysis Agent (DA) - First concrete ESAF agent implementation
- * @fileoverview Implements data preprocessing, feature extraction, validation, and anomaly detection
+ * Data Analysis Agent (DA) - Mathematical Implementation
+ * @fileoverview Uses actual mathematical algorithms for data analysis
  */
 
+import { BaseESAFAgent } from '@/agents/base-agent';
+import { 
+  BayesianInference,
+  StatisticalAnomalyDetection,
+  StatisticalFeatureExtraction,
+  MathematicalDataValidation
+} from '@/core/real-algorithms';
+import { LLMProvider, LLMRequest, llmService } from '@/core/llm-service';
+import { Task, AnalysisResult } from '@/core/types';
 import { v4 as uuidv4 } from 'uuid';
-import { BaseESAFAgent } from './base-agent.js';
-import {
-  Task,
-  AnalysisResult,
-  DataSource,
-  EventType,
-  DataSourceSchema
-} from '../core/types.js';
 
 /**
- * Data validation result structure
- */
-interface DataValidationResult {
-  isValid: boolean;
-  confidence: number;
-  anomalies: string[];
-  sourceReliability: number;
-  lastUpdated: number;
-}
-
-/**
- * Feature extraction result structure
- */
-interface FeatureExtractionResult {
-  features: Record<string, unknown>;
-  featureCount: number;
-  extractionMethod: string;
-  quality: number;
-}
-
-/**
- * Data Analysis Agent implementing Bayesian probabilistic modeling
- * Handles data preprocessing, validation, feature extraction, and anomaly detection
+ * Data Analysis Agent that performs actual mathematical computations
+ * Uses LLM only for natural language interpretation, not algorithm simulation
  */
 export class DataAnalysisAgent extends BaseESAFAgent {
-  private readonly confidenceThreshold = 0.6;
-  private readonly volatilityThreshold = 0.8;
-  private dataSourceCache = new Map<string, DataSource>();
+  protected preferredProvider: LLMProvider;
+  protected systemPrompt: string;
 
-  constructor() {
+  constructor(preferredProvider: LLMProvider = LLMProvider.GOOGLE_GENAI) {
     super(
-      'da-agent',
+      'data-analysis',
       'Data Analysis Agent',
       'DataAnalysis',
-      'Bayesian',
-      ['BayesianNetworks', 'AnomalyDetection', 'DataNormalization', 'DataVersioning']
+      'BayesianMathematical',
+      ['MathematicalDataValidation', 'StatisticalFeatureExtraction', 'StatisticalAnomalyDetection', 'BayesianInference']
     );
+    
+    this.preferredProvider = preferredProvider;
+    
+    // Set LLM configuration for UI display
+    this.llmProvider = preferredProvider;
+    this.llmStatus = 'unknown';
+    
+    this.systemPrompt = `You are a Data Analysis Agent that interprets the results of real mathematical computations.
+Your role is to:
+1. Interpret the results of actual Bayesian inference calculations
+2. Explain the meaning of real statistical analysis results  
+3. Provide insights based on actual mathematical computations
+4. Translate mathematical results into actionable recommendations
+
+IMPORTANT: You do NOT perform calculations yourself. You interpret results from real algorithms.`;
   }
 
   /**
-   * Execute DA-specific task processing with Bayesian analysis
+   * Execute task using REAL algorithms, not LLM prompting
    */
   protected async executeTask(task: Task): Promise<AnalysisResult> {
-    const { type } = task;
-
-    switch (type) {
-      case 'data_validation':
-        return await this.validateData(task);
-      case 'feature_extraction':
-        return await this.extractFeatures(task);
-      case 'anomaly_detection':
-        return await this.detectAnomalies(task);
-      case 'data_backup':
-        return await this.backupData(task);
-      default:
-        throw new Error(`Unknown task type: ${type}`);
+    console.log(`🧮 DA Agent executing task: ${task.type}`);
+    console.log(`Task payload:`, task.payload);
+    
+    try {
+      switch (task.type) {
+        case 'data_validation':
+          return await this.performRealDataValidation(task);
+        case 'feature_extraction':
+          return await this.performRealFeatureExtraction(task);
+        case 'anomaly_detection':
+          return await this.performRealAnomalyDetection(task);
+        case 'intelligent_analysis':
+          return await this.performRealIntelligentAnalysis(task);
+        default:
+          throw new Error(`Unsupported task type: ${task.type}`);
+      }
+    } catch (error) {
+      console.error(`❌ Data Analysis Agent failed:`, error);
+      console.error(`Task details:`, task);
+      throw error;
     }
   }
 
   /**
-   * Validate data sources using Bayesian confidence scoring
+   * REAL data validation using mathematical checks
    */
-  private async validateData(task: Task): Promise<AnalysisResult> {
-    const { dataSources } = task.payload as { dataSources: unknown[] };
-
-    if (!Array.isArray(dataSources)) {
-      throw new Error('Invalid data sources payload');
+  private async performRealDataValidation(task: Task): Promise<AnalysisResult> {
+    const { data } = task.payload as { data: any[] };
+    
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('Data validation requires non-empty array');
     }
 
-    const validationResults: DataValidationResult[] = [];
-    let overallConfidence = 0;
+    // REAL ALGORITHM: Mathematical data quality assessment
+    const validationResults = MathematicalDataValidation.validateDataQuality(data);
+    
+    // Use LLM only to interpret the mathematical results
+    const interpretationPrompt = `Interpret these REAL data validation results:
 
-    for (const sourceData of dataSources) {
-      const validation = DataSourceSchema.safeParse(sourceData);
+MATHEMATICAL ANALYSIS RESULTS:
+- Data Quality Score: ${validationResults.quality.toFixed(3)}
+- Valid: ${validationResults.isValid}
+- Issues Found: ${validationResults.issues.join(', ') || 'None'}
+- Missing Data Rate: ${(validationResults.statistics.missingRate * 100).toFixed(1)}%
+- Total Records: ${validationResults.statistics.totalCount}
 
-      if (!validation.success) {
-        await this.publishEvent(
-          EventType.CONSTRAINT_VIOLATION,
-          {
-            message: 'Invalid data source structure',
-            errors: validation.error.errors,
-            sourceData
-          },
-          task.id
-        );
-        continue;
-      }
+RECOMMENDATIONS FROM ALGORITHMS:
+${validationResults.recommendations.join('\n')}
 
-      const source = validation.data;
-      this.dataSourceCache.set(source.id, source);
+Provide a clear interpretation of what these mathematical results mean for data quality and next steps.`;
 
-      // Bayesian confidence calculation
-      const timeWeight = this.calculateTimeWeight(source.lastUpdated);
-      const reliabilityWeight = source.reliability;
-      const statusWeight = source.status === 'verified' ? 1.0 : 0.2;
-
-      const confidence = (timeWeight * 0.3 + reliabilityWeight * 0.5 + statusWeight * 0.2);
-
-      const result: DataValidationResult = {
-        isValid: confidence >= this.confidenceThreshold,
-        confidence,
-        anomalies: this.detectDataAnomalies(source),
-        sourceReliability: source.reliability,
-        lastUpdated: source.lastUpdated
-      };
-
-      validationResults.push(result);
-      overallConfidence += confidence;
-
-      // Check for high volatility
-      const volatility = this.calculateDataVolatility(source);
-      if (volatility > this.volatilityThreshold) {
-        await this.publishEvent(
-          EventType.ANOMALY_DETECTED,
-          {
-            type: 'high_volatility',
-            sourceId: source.id,
-            volatility,
-            message: 'Data source shows high volatility, requesting continuous monitoring'
-          },
-          task.id
-        );
-      }
-    }
-
-    const finalConfidence = validationResults.length > 0 ?
-      overallConfidence / validationResults.length : 0;
-
-    return {
-      id: uuidv4(),
-      sourceTaskId: task.id,
-      agentId: this.id,
-      result: {
-        validationResults,
-        overallConfidence: finalConfidence,
-        validSourceCount: validationResults.filter(r => r.isValid).length,
-        totalSourceCount: validationResults.length
-      },
-      confidence: finalConfidence,
-      timestamp: Date.now(),
-      metadata: {
-        algorithm: 'BayesianNetworks',
-        thresholds: {
-          confidence: this.confidenceThreshold,
-          volatility: this.volatilityThreshold
-        }
-      }
+    const llmRequest: LLMRequest = {
+      prompt: interpretationPrompt,
+      systemPrompt: this.systemPrompt,
+      provider: this.preferredProvider,
+      temperature: 0.3,
+      maxTokens: 1024
     };
+
+    try {
+      const llmResponse = await llmService.generateCompletion(llmRequest);
+      
+      return {
+        id: uuidv4(),
+        sourceTaskId: task.id,
+        agentId: this.id,
+        result: {
+          // REAL mathematical results
+          validationResults,
+          dataQualityScore: validationResults.quality,
+          issues: validationResults.issues,
+          recommendations: validationResults.recommendations,
+          
+          // LLM interpretation of real results
+          interpretation: llmResponse.content,
+          
+          metadata: {
+            algorithm: 'MathematicalDataValidation',
+            calculationType: 'REAL_MATH_NOT_LLM_FAKE',
+            llmRole: 'interpretation_only'
+          }
+        },
+        confidence: validationResults.quality,
+        timestamp: Date.now(),
+        metadata: {
+          algorithm: 'Real Mathematical Data Validation',
+          provider: llmResponse.provider,
+          analysisType: 'real_data_validation'
+        }
+      };
+    } catch (error) {
+      throw new Error(`Real data validation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   /**
-   * Extract features from validated data using Bayesian networks
+   * REAL feature extraction using statistical mathematics
    */
-  private async extractFeatures(task: Task): Promise<AnalysisResult> {
-    const { data, extractionMethod = 'bayesian' } = task.payload as {
-      data: unknown;
+  private async performRealFeatureExtraction(task: Task): Promise<AnalysisResult> {
+    const { data, extractionMethod } = task.payload as { 
+      data: number[] | number[][]; 
       extractionMethod?: string;
     };
 
-    const features: Record<string, unknown> = {};
-    let quality = 0;
+    let mathematicalFeatures: any;
+    let algorithmUsed: string;
 
-    if (typeof data === 'object' && data !== null) {
-      // Extract statistical features
-      const dataObj = data as Record<string, unknown>;
-
-      features.keyCount = Object.keys(dataObj).length;
-      features.hasNestedObjects = Object.values(dataObj).some(v => typeof v === 'object');
-      features.dataTypes = this.analyzeDataTypes(dataObj);
-      features.nullValues = Object.values(dataObj).filter(v => v == null).length;
-
-      // Bayesian feature quality assessment
-      quality = this.calculateFeatureQuality(features);
+    if (Array.isArray(data) && data.length > 0) {
+      if (typeof data[0] === 'number') {
+        // REAL ALGORITHM: Statistical feature extraction for 1D data
+        mathematicalFeatures = StatisticalFeatureExtraction.extractNumericalFeatures(data as number[]);
+        algorithmUsed = 'StatisticalFeatureExtraction_1D';
+      } else if (Array.isArray(data[0])) {
+        // REAL ALGORITHM: Correlation analysis for multivariate data
+        mathematicalFeatures = StatisticalFeatureExtraction.extractCorrelationFeatures(data as number[][]);
+        algorithmUsed = 'StatisticalFeatureExtraction_Multivariate';
+      } else {
+        throw new Error('Feature extraction requires numerical data');
+      }
+    } else {
+      throw new Error('Feature extraction requires non-empty data array');
     }
 
-    const result: FeatureExtractionResult = {
-      features,
-      featureCount: Object.keys(features).length,
-      extractionMethod,
-      quality
+    // Use LLM only to interpret the mathematical feature results
+    const interpretationPrompt = `Interpret these REAL mathematical feature extraction results:
+
+ALGORITHM USED: ${algorithmUsed}
+DATA POINTS: ${Array.isArray(data) ? data.length : 'Unknown'}
+
+MATHEMATICAL FEATURES:
+${JSON.stringify(mathematicalFeatures, null, 2)}
+
+Provide insights about:
+1. What these mathematical features reveal about the data
+2. Which features are most significant for analysis
+3. Potential patterns or relationships discovered
+4. Recommendations for further analysis
+
+Focus on interpreting the numerical results, not performing calculations.`;
+
+    const llmRequest: LLMRequest = {
+      prompt: interpretationPrompt,
+      systemPrompt: this.systemPrompt,
+      provider: this.preferredProvider,
+      temperature: 0.4,
+      maxTokens: 1536
     };
 
-    return {
-      id: uuidv4(),
-      sourceTaskId: task.id,
-      agentId: this.id,
-      result: { ...result },
-      confidence: quality,
-      timestamp: Date.now(),
-      metadata: {
-        algorithm: 'FeatureExtraction',
-        method: extractionMethod
-      }
-    };
-  }
+    try {
+      const llmResponse = await llmService.generateCompletion(llmRequest);
+      
+      // Calculate confidence based on data completeness and feature richness
+      const confidence = this.calculateFeatureConfidence(mathematicalFeatures, data);
 
-  /**
-   * Detect anomalies in data using statistical analysis
-   */
-  private async detectAnomalies(task: Task): Promise<AnalysisResult> {
-    const { data } = task.payload as { data: unknown };
-    const anomalies: string[] = [];
-    let confidence = 0.8; // Base confidence for anomaly detection
-
-    // Implement anomaly detection logic
-    if (Array.isArray(data)) {
-      // Check for outliers in array data
-      if (data.every(item => typeof item === 'number')) {
-        const numericData = data as number[];
-        const outliers = this.detectOutliers(numericData);
-        if (outliers.length > 0) {
-          anomalies.push(`Detected ${outliers.length} statistical outliers`);
-        }
-      }
-    }
-
-    if (typeof data === 'object' && data !== null) {
-      const dataObj = data as Record<string, unknown>;
-
-      // Check for structural anomalies
-      if (Object.keys(dataObj).length === 0) {
-        anomalies.push('Empty data object detected');
-      }
-
-      // Check for type inconsistencies
-      const typeInconsistencies = this.detectTypeInconsistencies(dataObj);
-      anomalies.push(...typeInconsistencies);
-    }
-
-    // Publish anomaly events if detected
-    if (anomalies.length > 0) {
-      await this.publishEvent(
-        EventType.ANOMALY_DETECTED,
-        {
-          anomalyCount: anomalies.length,
-          anomalies,
-          severity: anomalies.length > 3 ? 'high' : 'medium'
-        },
-        task.id
-      );
-    }
-
-    return {
-      id: uuidv4(),
-      sourceTaskId: task.id,
-      agentId: this.id,
-      result: {
-        anomaliesDetected: anomalies.length,
-        anomalies,
-        dataHealth: anomalies.length === 0 ? 'healthy' : 'anomalous'
-      },
-      confidence,
-      timestamp: Date.now(),
-      metadata: {
-        algorithm: 'AnomalyDetection',
-        detectionMethods: ['statistical_outliers', 'structural_analysis', 'type_consistency']
-      }
-    };
-  }
-
-  /**
-   * Backup data with versioning
-   */
-  private async backupData(task: Task): Promise<AnalysisResult> {
-    const { data, version } = task.payload as { data: unknown; version?: string };
-
-    const backupId = uuidv4();
-    const timestamp = Date.now();
-    const backupVersion = version || `v${timestamp}`;
-
-    // In a real implementation, this would persist to storage
-    const backupResult = {
-      backupId,
-      version: backupVersion,
-      timestamp,
-      dataSize: JSON.stringify(data).length,
-      status: 'completed'
-    };
-
-    return {
-      id: uuidv4(),
-      sourceTaskId: task.id,
-      agentId: this.id,
-      result: backupResult,
-      confidence: 1.0,
-      timestamp,
-      metadata: {
-        algorithm: 'DataVersioning',
-        backupMethod: 'json_serialization'
-      }
-    };
-  }
-
-  /**
-   * Calculate time-based weight for data freshness
-   */
-  private calculateTimeWeight(lastUpdated: number): number {
-    const now = Date.now();
-    const hoursSinceUpdate = (now - lastUpdated) / (1000 * 60 * 60);
-
-    // Data within 24 hours gets weight 0.8, older data gets lower weight
-    return hoursSinceUpdate <= 24 ? 0.8 : 0.2;
-  }
-
-  /**
-   * Detect anomalies in data source configuration
-   */
-  private detectDataAnomalies(source: DataSource): string[] {
-    const anomalies: string[] = [];
-
-    if (source.reliability < 0.3) {
-      anomalies.push('Low reliability score');
-    }
-
-    if (source.status === 'error') {
-      anomalies.push('Data source in error state');
-    }
-
-    const hoursSinceUpdate = (Date.now() - source.lastUpdated) / (1000 * 60 * 60);
-    if (hoursSinceUpdate > 168) { // 1 week
-      anomalies.push('Stale data (over 1 week old)');
-    }
-
-    return anomalies;
-  }
-
-  /**
-   * Calculate data volatility score
-   */
-  private calculateDataVolatility(source: DataSource): number {
-    // Simplified volatility calculation based on source properties
-    let volatility = 0;
-
-    if (source.type === 'stream') volatility += 0.4;
-    if (source.reliability < 0.5) volatility += 0.3;
-    if (source.status === 'unverified') volatility += 0.2;
-
-    return Math.min(volatility, 1.0);
-  }
-
-  /**
-   * Analyze data types in an object
-   */
-  private analyzeDataTypes(data: Record<string, unknown>): Record<string, number> {
-    const typeCounts: Record<string, number> = {};
-
-    Object.values(data).forEach(value => {
-      const type = value === null ? 'null' : typeof value;
-      typeCounts[type] = (typeCounts[type] || 0) + 1;
-    });
-
-    return typeCounts;
-  }
-
-  /**
-   * Calculate feature quality score
-   */
-  private calculateFeatureQuality(features: Record<string, unknown>): number {
-    const featureCount = Object.keys(features).length;
-    let quality = Math.min(featureCount / 10, 1.0); // Normalize by expected feature count
-
-    // Boost quality if we have diverse feature types
-    if (features.dataTypes && typeof features.dataTypes === 'object') {
-      const typeCount = Object.keys(features.dataTypes as object).length;
-      quality = Math.min(quality + (typeCount * 0.1), 1.0);
-    }
-
-    return quality;
-  }
-
-  /**
-   * Detect statistical outliers in numeric data
-   */
-  private detectOutliers(data: number[]): number[] {
-    if (data.length < 3) return [];
-
-    const sorted = [...data].sort((a, b) => a - b);
-    const q1Index = Math.floor(sorted.length * 0.25);
-    const q3Index = Math.floor(sorted.length * 0.75);
-
-    const q1 = sorted[q1Index];
-    const q3 = sorted[q3Index];
-    if (q1 === undefined || q3 === undefined) {
-      return [];
-    }
-    const iqr = q3 - q1;
-
-    const lowerBound = q1 - 1.5 * iqr;
-    const upperBound = q3 + 1.5 * iqr;
-
-    return data.filter(value => value < lowerBound || value > upperBound);
-  }
-
-  /**
-   * Detect type inconsistencies in object data
-   */
-  private detectTypeInconsistencies(data: Record<string, unknown>): string[] {
-    const inconsistencies: string[] = [];
-    const values = Object.values(data);
-
-    // Check if array values have consistent types
-    if (values.some(Array.isArray)) {
-      const arrayValues = values.filter(Array.isArray) as unknown[][];
-      arrayValues.forEach((arr, index) => {
-        if (arr.length > 0) {
-          const firstType = typeof arr[0];
-          const hasInconsistentTypes = arr.some(item => typeof item !== firstType);
-          if (hasInconsistentTypes) {
-            inconsistencies.push(`Array ${index} has inconsistent value types`);
+      return {
+        id: uuidv4(),
+        sourceTaskId: task.id,
+        agentId: this.id,
+        result: {
+          // REAL mathematical features
+          mathematicalFeatures,
+          algorithmUsed,
+          extractionMethod: extractionMethod || 'statistical_analysis',
+          dataProfile: {
+            size: Array.isArray(data) ? data.length : 0,
+            dimensions: Array.isArray(data[0]) ? data[0].length : 1,
+            type: typeof data[0] === 'number' ? 'numerical_1d' : 'numerical_multivariate'
+          },
+          
+          // LLM interpretation of real results  
+          interpretation: llmResponse.content,
+          
+          metadata: {
+            algorithm: algorithmUsed,
+            calculationType: 'REAL_MATH_NOT_LLM_FAKE',
+            llmRole: 'interpretation_only'
           }
+        },
+        confidence,
+        timestamp: Date.now(),
+        metadata: {
+          algorithm: 'Real Mathematical Feature Extraction',
+          provider: llmResponse.provider,
+          analysisType: 'real_feature_extraction'
         }
-      });
+      };
+    } catch (error) {
+      throw new Error(`Real feature extraction failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * REAL anomaly detection using statistical algorithms
+   */
+  private async performRealAnomalyDetection(task: Task): Promise<AnalysisResult> {
+    const { data, method, threshold } = task.payload as { 
+      data: number[]; 
+      method?: 'zscore' | 'iqr' | 'mad';
+      threshold?: number;
+    };
+
+    if (!Array.isArray(data) || data.some(item => typeof item !== 'number')) {
+      throw new Error('Anomaly detection requires array of numbers');
     }
 
-    return inconsistencies;
+    let anomalyResults: any;
+    let algorithmUsed: string;
+
+    // REAL ALGORITHMS: Actual statistical anomaly detection
+    switch (method || 'zscore') {
+      case 'zscore':
+        anomalyResults = StatisticalAnomalyDetection.detectZScoreAnomalies(data, threshold || 2.5);
+        algorithmUsed = 'Z-Score Anomaly Detection';
+        break;
+      case 'iqr':
+        anomalyResults = StatisticalAnomalyDetection.detectIQRAnomalies(data);
+        algorithmUsed = 'IQR Anomaly Detection';
+        break;
+      case 'mad':
+        anomalyResults = StatisticalAnomalyDetection.detectMADAnomalies(data, threshold || 3.5);
+        algorithmUsed = 'MAD Anomaly Detection';
+        break;
+      default:
+        throw new Error(`Unsupported anomaly detection method: ${method}`);
+    }
+
+    // Use LLM only to interpret the mathematical anomaly results
+    const interpretationPrompt = `Interpret these REAL anomaly detection results:
+
+ALGORITHM: ${algorithmUsed}
+DATA POINTS ANALYZED: ${data.length}
+
+MATHEMATICAL RESULTS:
+- Anomalies Found: ${anomalyResults.anomalies.length}
+- Anomaly Rate: ${(anomalyResults.statistics.anomalyRate * 100).toFixed(2)}%
+- Statistical Summary: ${JSON.stringify(anomalyResults.statistics, null, 2)}
+
+ANOMALIES DETECTED:
+${anomalyResults.anomalies.slice(0, 10).join(', ')}${anomalyResults.anomalies.length > 10 ? '...' : ''}
+
+Provide insights about:
+1. Significance of the detected anomalies
+2. Potential causes or patterns in the anomalies
+3. Impact assessment for data quality
+4. Recommendations for handling these anomalies
+
+Interpret the mathematical results, don't recalculate them.`;
+
+    const llmRequest: LLMRequest = {
+      prompt: interpretationPrompt,
+      systemPrompt: this.systemPrompt,
+      provider: this.preferredProvider,
+      temperature: 0.3,
+      maxTokens: 1024
+    };
+
+    try {
+      const llmResponse = await llmService.generateCompletion(llmRequest);
+      
+      // Calculate confidence based on statistical significance
+      const confidence = this.calculateAnomalyConfidence(anomalyResults, data.length);
+
+      return {
+        id: uuidv4(),
+        sourceTaskId: task.id,
+        agentId: this.id,
+        result: {
+          // REAL mathematical anomaly detection results
+          anomalyResults,
+          algorithmUsed,
+          anomaliesDetected: anomalyResults.anomalies,
+          anomalyRate: anomalyResults.statistics.anomalyRate,
+          statisticalMeasures: anomalyResults.statistics,
+          
+          // LLM interpretation of real results
+          interpretation: llmResponse.content,
+          
+          metadata: {
+            algorithm: algorithmUsed,
+            calculationType: 'REAL_MATH_NOT_LLM_FAKE',
+            llmRole: 'interpretation_only'
+          }
+        },
+        confidence,
+        timestamp: Date.now(),
+        metadata: {
+          algorithm: 'Real Statistical Anomaly Detection',
+          provider: llmResponse.provider,
+          analysisType: 'real_anomaly_detection'
+        }
+      };
+    } catch (error) {
+      throw new Error(`Real anomaly detection failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * REAL intelligent analysis combining multiple mathematical approaches
+   */
+  private async performRealIntelligentAnalysis(task: Task): Promise<AnalysisResult> {
+    console.log(`🎯 Starting intelligent analysis...`);
+    const { data, query } = task.payload as { data: any; query: string };
+    console.log(`Query: "${query}"`);
+    console.log(`Data type: ${typeof data}, Array: ${Array.isArray(data)}, Length: ${Array.isArray(data) ? data.length : 'N/A'}`);
+
+    // Extract numerical data for mathematical analysis
+    const numericalData = this.extractNumericalData(data);
+    console.log(`Extracted numerical data: ${numericalData.length} numbers`);
+    
+    if (numericalData.length === 0) {
+      console.warn(`⚠️ No numerical data found, creating fallback analysis`);
+      // Create a simple fallback response when no numerical data is available
+      return {
+        id: uuidv4(),
+        sourceTaskId: task.id,
+        agentId: this.id,
+        result: {
+          analysis: `I analyzed your query: "${query}"\n\nHowever, no numerical data was available for mathematical analysis. This could be because:\n- The data hasn't been uploaded yet\n- The data is text-based rather than numerical\n- The data format isn't recognized\n\nFor best results, please upload numerical data (CSV files, arrays of numbers, etc.) and ask again.`,
+          comprehensiveAnalysis: {
+            dataValidation: { quality: 0, isValid: false, issues: ['No numerical data available'] },
+            dataAvailable: false,
+            dataType: typeof data,
+            isArray: Array.isArray(data)
+          },
+          insights: [
+            'No numerical data available for analysis',
+            'Consider uploading CSV files or numerical datasets',
+            'Text-based analysis capabilities coming soon'
+          ],
+          metadata: {
+            algorithmsUsed: ['Fallback'],
+            calculationType: 'FALLBACK_NO_DATA',
+            llmRole: 'primary_response'
+          }
+        },
+        confidence: 0.3,
+        timestamp: Date.now(),
+        metadata: {
+          algorithm: 'Fallback Analysis',
+          analysisType: 'fallback_no_data'
+        }
+      };
+    }
+
+    try {
+      console.log(`📊 Running mathematical algorithms...`);
+      
+      // REAL ALGORITHMS: Multiple mathematical analyses
+      const validationResults = MathematicalDataValidation.validateDataQuality([data].flat());
+      console.log(`✅ Data validation completed. Quality: ${validationResults.quality}`);
+      
+      const featureResults = StatisticalFeatureExtraction.extractNumericalFeatures(numericalData);
+      console.log(`✅ Feature extraction completed. Mean: ${featureResults.descriptive.mean}`);
+      
+      const anomalyResults = StatisticalAnomalyDetection.detectZScoreAnomalies(numericalData);
+      console.log(`✅ Anomaly detection completed. Found ${anomalyResults.anomalies.length} anomalies`);
+
+      // Bayesian classification of data quality
+      const qualityHypotheses = [
+        { 
+          name: 'high_quality', 
+          prior: 0.3, 
+          likelihoodFunction: () => validationResults.quality > 0.8 ? 0.9 : 0.1 
+        },
+        { 
+          name: 'medium_quality', 
+          prior: 0.5, 
+          likelihoodFunction: () => validationResults.quality > 0.5 ? 0.8 : 0.2 
+        },
+        { 
+          name: 'low_quality', 
+          prior: 0.2, 
+          likelihoodFunction: () => validationResults.quality < 0.5 ? 0.9 : 0.1 
+        }
+      ];
+
+      const bayesianClassification = BayesianInference.classify(
+        [validationResults.quality, anomalyResults.statistics.anomalyRate],
+        qualityHypotheses
+      );
+      console.log(`✅ Bayesian classification: ${bayesianClassification.hypothesis}`);
+
+      // Create interpretation without LLM if it fails
+      let interpretation = `**Mathematical Analysis Results**
+
+**Query**: ${query}
+
+**Data Overview**: 
+- ${numericalData.length} numerical data points analyzed
+- Data quality: ${bayesianClassification.hypothesis} (${(bayesianClassification.probability * 100).toFixed(1)}% confidence)
+- Quality score: ${validationResults.quality.toFixed(3)}
+
+**Statistical Summary**:
+- Mean: ${featureResults.descriptive.mean.toFixed(3)}
+- Standard deviation: ${featureResults.variability.standardDeviation.toFixed(3)}
+- Distribution: ${featureResults.shape.skewness > 0.5 ? 'right-skewed' : featureResults.shape.skewness < -0.5 ? 'left-skewed' : 'approximately normal'}
+
+**Anomaly Detection**:
+- ${anomalyResults.anomalies.length} anomalies detected (${(anomalyResults.statistics.anomalyRate * 100).toFixed(2)}% of data)
+- Detection method: Z-score analysis
+
+**Key Insights**:
+- Data quality classified as **${bayesianClassification.hypothesis}**
+- ${anomalyResults.anomalies.length > 0 ? `Found ${anomalyResults.anomalies.length} potential outliers` : 'No significant anomalies detected'}
+- ${validationResults.issues.length > 0 ? `Issues identified: ${validationResults.issues.join(', ')}` : 'No data quality issues found'}`;
+
+      // Try to use LLM for enhanced interpretation
+      try {
+        console.log(`🤖 Attempting LLM interpretation...`);
+        const interpretationPrompt = `Interpret this comprehensive REAL mathematical analysis:
+
+USER QUERY: "${query}"
+
+MATHEMATICAL ANALYSIS RESULTS:
+1. DATA VALIDATION:
+   Quality Score: ${validationResults.quality.toFixed(3)}
+   Issues: ${validationResults.issues.join(', ') || 'None'}
+
+2. STATISTICAL FEATURES:
+   Mean: ${featureResults.descriptive.mean.toFixed(3)}
+   Std Dev: ${featureResults.variability.standardDeviation.toFixed(3)}
+   Skewness: ${featureResults.shape.skewness.toFixed(3)}
+   Kurtosis: ${featureResults.shape.kurtosis.toFixed(3)}
+
+3. ANOMALY DETECTION:
+   Anomalies Found: ${anomalyResults.anomalies.length}
+   Anomaly Rate: ${(anomalyResults.statistics.anomalyRate * 100).toFixed(2)}%
+
+4. BAYESIAN CLASSIFICATION:
+   Data Quality Classification: ${bayesianClassification.hypothesis}
+   Probability: ${bayesianClassification.probability.toFixed(3)}
+   Confidence: ${bayesianClassification.confidence.toFixed(3)}
+
+Provide a comprehensive analysis that addresses the user's query using these REAL mathematical results.`;
+
+        const llmRequest: LLMRequest = {
+          prompt: interpretationPrompt,
+          systemPrompt: this.systemPrompt,
+          provider: this.preferredProvider,
+          temperature: 0.4,
+          maxTokens: 2048
+        };
+
+        const llmResponse = await llmService.generateCompletion(llmRequest);
+        interpretation = llmResponse.content;
+        console.log(`✅ LLM interpretation successful`);
+        
+      } catch (llmError) {
+        console.warn(`⚠️ LLM interpretation failed, using mathematical results only:`, llmError);
+        // interpretation already set above as fallback
+      }
+      
+      const finalResult = {
+        id: uuidv4(),
+        sourceTaskId: task.id,
+        agentId: this.id,
+        result: {
+          // REAL mathematical analysis results
+          comprehensiveAnalysis: {
+            dataValidation: validationResults,
+            statisticalFeatures: featureResults,
+            anomalyDetection: anomalyResults,
+            bayesianClassification
+          },
+          
+          // Interpretation (LLM-enhanced or mathematical fallback)
+          interpretation,
+          analysis: interpretation,
+          
+          // Summary metrics from real calculations
+          insights: [
+            `Data quality: ${bayesianClassification.hypothesis} (${(bayesianClassification.probability * 100).toFixed(1)}% confidence)`,
+            `${anomalyResults.anomalies.length} anomalies detected (${(anomalyResults.statistics.anomalyRate * 100).toFixed(2)}% of data)`,
+            `Distribution: ${featureResults.shape.skewness > 0 ? 'right-skewed' : featureResults.shape.skewness < -0.5 ? 'left-skewed' : 'approximately normal'}`
+          ],
+          
+          metadata: {
+            algorithmsUsed: ['MathematicalDataValidation', 'StatisticalFeatureExtraction', 'StatisticalAnomalyDetection', 'BayesianInference'],
+            calculationType: 'REAL_MATH_NOT_LLM_FAKE',
+            llmRole: 'interpretation_only',
+            numericalDataCount: numericalData.length,
+            dataQualityScore: validationResults.quality
+          }
+        },
+        confidence: bayesianClassification.confidence * 0.8 + validationResults.quality * 0.2,
+        timestamp: Date.now(),
+        metadata: {
+          algorithm: 'Real Comprehensive Mathematical Analysis',
+          analysisType: 'real_intelligent_analysis'
+        }
+      };
+
+      console.log(`✅ Intelligent analysis completed successfully`);
+      return finalResult;
+      
+    } catch (error) {
+      console.error(`❌ Mathematical algorithms failed:`, error);
+      throw new Error(`Real intelligent analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Extract numerical data from mixed data types
+   */
+  private extractNumericalData(data: any): number[] {
+    if (Array.isArray(data)) {
+      return data.filter(item => typeof item === 'number' && !isNaN(item));
+    } else if (typeof data === 'object' && data !== null) {
+      const values = Object.values(data);
+      return values.filter(item => typeof item === 'number' && !isNaN(item)) as number[];
+    } else if (typeof data === 'number' && !isNaN(data)) {
+      return [data];
+    }
+    return [];
+  }
+
+  /**
+   * Calculate confidence for feature extraction results
+   */
+  private calculateFeatureConfidence(features: any, data: any): number {
+    const dataSize = Array.isArray(data) ? data.length : 1;
+    const sizeConfidence = Math.min(dataSize / 30, 1.0); // More data = higher confidence
+    
+    // Check feature completeness
+    const hasDescriptive = features.descriptive && Object.keys(features.descriptive).length > 0;
+    const hasVariability = features.variability && Object.keys(features.variability).length > 0;
+    const featureCompleteness = (hasDescriptive ? 0.5 : 0) + (hasVariability ? 0.5 : 0);
+    
+    return sizeConfidence * 0.6 + featureCompleteness * 0.4;
+  }
+
+  /**
+   * Calculate confidence for anomaly detection results
+   */
+  private calculateAnomalyConfidence(anomalyResults: any, dataSize: number): number {
+    const sizeConfidence = Math.min(dataSize / 50, 1.0); // More data = higher confidence
+    const anomalyRate = anomalyResults.statistics.anomalyRate;
+    
+    // Moderate anomaly rates are more reliable than extreme rates
+    const rateConfidence = anomalyRate > 0.01 && anomalyRate < 0.2 ? 1.0 : 0.7;
+    
+    return sizeConfidence * 0.7 + rateConfidence * 0.3;
   }
 }
