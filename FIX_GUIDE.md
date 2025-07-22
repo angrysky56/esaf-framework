@@ -30,7 +30,11 @@ npm run tauri:dev
    - ✅ Dark/Light theme toggle
    - ✅ Settings panel with LLM configuration
 
-## 📋 Features That Are Already Implemented
+## 📋 Features That Are Already Implemented- actually not true yet lol sorry, AI.
+You can find pre-built packages here though, they may work even.
+
+esaf-framework/src-tauri/target/release/bundle/deb/ESAF Framework_0.1.0_amd64.deb
+
 
 ### Chat Continuity ✅
 - Every conversation is automatically saved
@@ -89,7 +93,7 @@ When the app starts correctly, you should see:
 
 Your ESAF framework is **fully functional** with all requested features:
 - ✅ Chat continuity and history persistence
-- ✅ Document library for context management  
+- ✅ Document library for context management
 - ✅ Tauri desktop application
 - ✅ Real mathematical algorithms in agents
 - ✅ Multi-provider LLM support (Gemini, OpenAI, Anthropic)
